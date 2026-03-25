@@ -1,70 +1,69 @@
 # bio-web-workbench
 
-`bio-web-workbench` is a code-first repository for reproducible bioinformatics web workflows.
+`bio-web-workbench` is a public-facing code snapshot for running webpage-specific bioinformatics tasks locally.
 
-It packages small, composable task scripts for sequence preparation, localization analysis, RNA interaction discovery, and gene-set network export while keeping formal runs protocol-gated and auditable.
+This public repository keeps only:
 
-## Overview
+- webpage runtime code under `scripts/webpages/`
+- webpage-oriented tests under `tests/`
+- minimal public docs and installation notes
 
-Current public scope:
+This public snapshot does not include protocol gating, local outputs, caches, private notes, or downloaded third-party archives.
 
-- RNA and protein subcellular localization workflows
-- `mRNA -> miRNA` target discovery
-- `miRNA -> lncRNA` target discovery
-- `GeneMANIA` gene-set report export
-- protocol-gated task execution
+## Included workflows
 
-## Key Design Choices
+- sequence preparation from `NCBI Gene` and `NCBI Protein`
+- RNA and protein localization from `mRSLPred`, `RNALocate`, `UniProtKB`, `CELLO`, and `Cell-PLoc 2.0`
+- `mRNA -> miRNA` from `miRDB`, `ENCORI`, and `TargetScanHuman 8.0`
+- `miRNA -> lncRNA` from `DIANA-LncBase v3` and `ENCORI`
+- gene-set report export from `GeneMANIA`
 
-- webpage tasks are organized per source under `scripts/webpages/`
-- formal runs are fail-closed through `scripts/protocol_gate.py`
-- generated outputs stay local and are not versioned by default
-- public exports exclude caches, downloaded archives, and private workflow notes
+## Install
 
-## Repository Layout
+Create a clean environment and install the public requirements:
 
-- `data/`: small smoke-test example inputs only
-- `docs/`: public quickstart and methods overview
-- `scripts/protocol_gate.py`: fail-closed protocol gate used by formal tasks
-- `scripts/merge_gene_mirna_lncrna_pairs.py`: helper for joining upstream `Gene-miRNA` pairs with downstream `miRNA-lncRNA` results
-- `scripts/prepare_public_repo.py`: non-destructive public export builder
-- `scripts/webpages/`: webpage-specific task packages, manifests, and task entrypoints
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+python -m playwright install chromium
+```
 
-Generated outputs, caches, downloaded third-party archives, and local runtime directories are intentionally excluded.
+Notes:
 
-This public-safe export also rewrites local absolute paths in documentation into repository-relative paths.
+- `GeneMANIA` requires the `playwright` Python package plus a local Chromium install.
+- `mRSLPred` uses the upstream standalone runtime. By default the wrapper expects `conda run -n mrslpred_py37 python ...`. You can also point it at a specific interpreter with `--runtime-python`.
+- `TargetScanHuman 8.0` local mode needs two large score archives that are not redistributed here. See [docs/TASKS.md](docs/TASKS.md).
 
-## What Is Not Included
+## How to run
 
-The public export intentionally excludes:
+Every task is a normal Python script. Public usage no longer requires a protocol ticket.
 
-- local task outputs and caches
-- local `TargetScan` archives
-- internal operator/agent workflow notes
-- local-only command templates that rely on workstation-specific absolute paths in their original private form
-- private working notes and temporary directories
+Examples:
 
-Sanitized webpage `README.md` and `COMMANDS.md` files can be included in the exported public preview.
+```powershell
+python scripts/webpages/mirdb_org/index/tasks/mrna_to_mirna.py --gene PIK3CA --job-dir outputs/tasks/mRNA_miRNA_miRDB_PIK3CA
+python scripts/webpages/rnalocate_org/search/tasks/rna_symbol_to_localization_annotation.py --rna PIK3CA --job-dir outputs/tasks/RNALoc_RNALocate_PIK3CA
+python scripts/webpages/genemania_org/search/tasks/gene_set_to_report_figure.py --gene PIK3CA --gene VPS26A --job-dir outputs/tasks/GeneSetAnalysis_GeneMANIA_PIK3CA_VPS26A
+```
 
-## Execution Model
+For the full task list, key parameters, and example commands, see [docs/TASKS.md](docs/TASKS.md).
 
-Formal webpage tasks are designed to be fail-closed:
+## Repository layout
 
-1. Identify the webpage package
-2. Create a protocol check file with `scripts/protocol_gate.py`
-3. Run the task script with `--protocol-check-file`
+- `scripts/webpages/`: webpage runtime code only
+- `tests/`: public webpage tests only
+- `docs/TASKS.md`: task list, webpages, parameters, and example commands
+- `requirements.txt`: Python packages needed for local execution
 
-## Getting Started
+## Testing
 
-- [Quickstart](docs/QUICKSTART.md)
-- [Methods Overview](docs/METHODS.md)
+Run the public test suite with:
 
-## Public Snapshot Notes
-
-- This public-safe snapshot is code-first. Some internal documentation is intentionally omitted because it contains local execution paths or private workflow conventions.
-- Third-party websites and downloadable datasets may have their own usage terms. Public users should fetch external resources themselves when required.
-- The repository license applies to this codebase only. External websites, models, and downloadable resources remain subject to their own terms.
+```powershell
+pytest -q tests
+```
 
 ## License
 
-This repository is released under the [MIT License](LICENSE).
+This code is released under the [MIT License](LICENSE).

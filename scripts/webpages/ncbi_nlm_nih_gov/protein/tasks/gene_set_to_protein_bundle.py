@@ -11,16 +11,13 @@ from typing import Any
 
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[4]))
-    from protocol_gate import ProtocolGateError, infer_input_type, validate_protocol_ticket
     from webpages.ncbi_nlm_nih_gov.protein.common.fasta_fetch import DEFAULT_EFETCH_DOC, FASTA_DETAIL_FIELDS, NcbiProteinFastaClient, NcbiProteinFastaError, build_fasta_summary_entry, build_output_fasta_header, parse_fasta_response
     from webpages.ncbi_nlm_nih_gov.protein.common.gene_resolution import DEFAULT_DATASETS_DOC, DEFAULT_TAXON, PRODUCT_DETAIL_FIELDS, NcbiProteinClient, NcbiProteinError, annotate_rows_with_query_count, build_gene_summary_entry, copy_gene_input_artifacts, load_genes, parse_product_report
     from webpages.ncbi_nlm_nih_gov.protein.common.io import safe_filename, wrap_fasta_sequence, write_csv_rows, write_json
 else:
-    from protocol_gate import ProtocolGateError, infer_input_type, validate_protocol_ticket
     from ..common.fasta_fetch import DEFAULT_EFETCH_DOC, FASTA_DETAIL_FIELDS, NcbiProteinFastaClient, NcbiProteinFastaError, build_fasta_summary_entry, build_output_fasta_header, parse_fasta_response
     from ..common.gene_resolution import DEFAULT_DATASETS_DOC, DEFAULT_TAXON, PRODUCT_DETAIL_FIELDS, NcbiProteinClient, NcbiProteinError, annotate_rows_with_query_count, build_gene_summary_entry, copy_gene_input_artifacts, load_genes, parse_product_report
     from ..common.io import safe_filename, wrap_fasta_sequence, write_csv_rows, write_json
-
 
 ROOT = Path(__file__).resolve().parents[5]
 DEFAULT_HOMEPAGE = "https://www.ncbi.nlm.nih.gov/"
@@ -45,7 +42,6 @@ TASK_METADATA = {
     "master_file_mode": "multi_file_bundle",
 }
 
-
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Resolve gene symbols via NCBI, keep all/recommended proteins, and fetch FASTA for the recommended protein of each gene.",
@@ -57,9 +53,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--output-prefix", type=Path, help="Legacy output prefix for combined outputs.")
     parser.add_argument("--taxon", default=DEFAULT_TAXON, help=f'Taxon name or ID (default: "{DEFAULT_TAXON}").')
     parser.add_argument("--timeout", type=float, default=60.0, help="Per-request timeout in seconds.")
-    parser.add_argument("--protocol-check-file", type=Path, help="Required protocol gate JSON for a formal run.")
     return parser.parse_args(argv)
-
 
 def derive_job_name(args: argparse.Namespace, genes: list[str]) -> str:
     if args.job_name:
@@ -70,12 +64,10 @@ def derive_job_name(args: argparse.Namespace, genes: list[str]) -> str:
         return safe_filename(genes[0])
     return f"{safe_filename(genes[0])}_{len(genes)}_genes"
 
-
 def resolve_job_dir(args: argparse.Namespace, genes: list[str]) -> Path:
     if args.job_dir:
         return args.job_dir
     return DEFAULT_JOB_ROOT / f"{DEFAULT_JOB_TAG}_{safe_filename(args.taxon)}_{derive_job_name(args, genes)}"
-
 
 def build_output_layout(*, args: argparse.Namespace, genes: list[str]) -> dict[str, Path | str | None]:
     if args.job_dir and args.output_prefix:
@@ -110,26 +102,8 @@ def build_output_layout(*, args: argparse.Namespace, genes: list[str]) -> dict[s
         "errors_path": job_dir / "temp" / "errors.json",
     }
 
-
 def filter_recommended_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [row for row in rows if int(row.get("protein_is_recommended") or 0) == 1]
-
-
-def relocate_protocol_ticket(*, protocol_check_file: Path, job_dir: Path | None, temp_dir: Path | None) -> Path:
-    if job_dir is None or temp_dir is None or not protocol_check_file.exists():
-        return protocol_check_file
-    try:
-        if protocol_check_file.resolve().parent != job_dir.resolve():
-            return protocol_check_file
-    except OSError:
-        return protocol_check_file
-    temp_dir.mkdir(parents=True, exist_ok=True)
-    relocated = temp_dir / protocol_check_file.name
-    if relocated.exists():
-        relocated.unlink()
-    shutil.move(str(protocol_check_file), str(relocated))
-    return relocated
-
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
@@ -144,29 +118,7 @@ def main(argv: list[str] | None = None) -> int:
         print(str(exc), file=sys.stderr)
         return 2
 
-    if args.protocol_check_file is None:
-        print("Formal task execution requires --protocol-check-file. Generate it first via scripts/protocol_gate.py.", file=sys.stderr)
-        return 2
-
-    try:
-        protocol_payload = validate_protocol_ticket(
-            args.protocol_check_file,
-            page_key=PAGE_KEY,
-            task_key=TASK_KEY,
-            input_type=infer_input_type(query_count=len(genes), input_file=args.input),
-            job_dir=layout["job_dir"] if isinstance(layout["job_dir"], Path) else None,
-        )
-    except ProtocolGateError as exc:
-        print(str(exc), file=sys.stderr)
-        return 2
-
     temp_dir = layout["temp_dir"] if isinstance(layout["temp_dir"], Path) else None
-    if isinstance(layout["job_dir"], Path):
-        args.protocol_check_file = relocate_protocol_ticket(
-            protocol_check_file=args.protocol_check_file,
-            job_dir=layout["job_dir"],
-            temp_dir=temp_dir,
-        )
     input_artifacts = copy_gene_input_artifacts(input_path=args.input, genes=genes, temp_dir=temp_dir)
 
     gene_client = NcbiProteinClient(timeout=args.timeout)
@@ -292,8 +244,6 @@ def main(argv: list[str] | None = None) -> int:
                 "output_mode": layout["mode"],
                 "job_dir": str(layout["job_dir"]) if isinstance(layout["job_dir"], Path) else "",
                 "temp_dir": str(temp_dir) if isinstance(temp_dir, Path) else "",
-                "protocol_check_file": str(args.protocol_check_file),
-                "protocol_check": protocol_payload,
                 "input_artifacts": input_artifacts,
                 "all_products_csv_path": str(all_products_csv_path),
                 "all_proteins_csv_path": str(all_proteins_csv_path),
@@ -315,7 +265,6 @@ def main(argv: list[str] | None = None) -> int:
     if errors_payload:
         print(f"Errors JSON: {errors_path}", file=sys.stderr)
     return 0
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

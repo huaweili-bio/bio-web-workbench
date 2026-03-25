@@ -14,14 +14,11 @@ from PIL import Image
 
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[4]))
-    from protocol_gate import ProtocolGateError, infer_input_type, validate_protocol_ticket
     from webpages.github_com.raghavagps_mrslpred.common.figure import DEFAULT_TITLE, build_figure_summary_result, render_localization_figure
     from webpages.github_com.raghavagps_mrslpred.common.runtime import DEFAULT_CONDA_ENV_NAME, DEFAULT_HOMEPAGE, DEFAULT_WEB_SERVER, RESULT_FIELDS, THRESHOLD_DEFAULTS, build_prediction_summary_results, build_runtime_command, combine_prediction_rows, copy_input_artifacts, ensure_runtime_assets, parse_fasta_records, read_prediction_outputs, resolve_runtime_command, run_mrslpred, write_csv_rows, write_json
 else:
-    from protocol_gate import ProtocolGateError, infer_input_type, validate_protocol_ticket
     from ..common.figure import DEFAULT_TITLE, build_figure_summary_result, render_localization_figure
     from ..common.runtime import DEFAULT_CONDA_ENV_NAME, DEFAULT_HOMEPAGE, DEFAULT_WEB_SERVER, RESULT_FIELDS, THRESHOLD_DEFAULTS, build_prediction_summary_results, build_runtime_command, combine_prediction_rows, copy_input_artifacts, ensure_runtime_assets, parse_fasta_records, read_prediction_outputs, resolve_runtime_command, run_mrslpred, write_csv_rows, write_json
-
 
 ROOT = Path(__file__).resolve().parents[5]
 PAGE_KEY = "github_com.raghavagps_mrslpred"
@@ -43,7 +40,6 @@ MASTER_FILE_NAME = "mrslpred_result.csv"
 FIGURE_PNG_NAME = "mrslpred_localization_figure.png"
 FIGURE_PDF_NAME = "mrslpred_localization_figure.pdf"
 
-
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run mRSLPred and generate mrslpred_result.csv plus prefixed localization figure PNG/PDF.")
     parser.add_argument("--input", type=Path, help="Input FASTA file.")
@@ -61,9 +57,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--th4", type=float, default=THRESHOLD_DEFAULTS["th4"], help="Membrane threshold.")
     parser.add_argument("--th5", type=float, default=THRESHOLD_DEFAULTS["th5"], help="Nucleus threshold.")
     parser.add_argument("--th6", type=float, default=THRESHOLD_DEFAULTS["th6"], help="Exosome threshold.")
-    parser.add_argument("--protocol-check-file", type=Path, help="Required protocol gate JSON for a formal run.")
     return parser.parse_args(argv)
-
 
 def resolve_input_fasta(args: argparse.Namespace) -> Path:
     if bool(args.input) == bool(args.input_dir):
@@ -80,14 +74,12 @@ def resolve_input_fasta(args: argparse.Namespace) -> Path:
     assert args.input is not None
     return args.input
 
-
 def safe_filename(value: str) -> str:
     import re
 
     sanitized = re.sub(r"[^A-Za-z0-9._-]+", "_", value.strip())
     sanitized = sanitized.strip("._")
     return sanitized or "job"
-
 
 def derive_job_name(args: argparse.Namespace, input_fasta: Path) -> str:
     if args.job_name:
@@ -96,12 +88,10 @@ def derive_job_name(args: argparse.Namespace, input_fasta: Path) -> str:
         return safe_filename(args.input_dir.name)
     return safe_filename(input_fasta.stem)
 
-
 def resolve_job_dir(args: argparse.Namespace, input_fasta: Path) -> Path:
     if args.job_dir:
         return args.job_dir
     return DEFAULT_JOB_ROOT / f"{DEFAULT_JOB_TAG}_{derive_job_name(args, input_fasta)}"
-
 
 def build_output_layout(*, args: argparse.Namespace, input_fasta: Path) -> dict[str, Path | str | None]:
     if args.job_dir and args.output_prefix:
@@ -130,28 +120,10 @@ def build_output_layout(*, args: argparse.Namespace, input_fasta: Path) -> dict[
         "errors_path": job_dir / "temp" / "errors.json",
     }
 
-
 def save_png_as_pdf(png_path: Path, pdf_path: Path) -> None:
     with Image.open(png_path) as image:
         pdf_path.parent.mkdir(parents=True, exist_ok=True)
         image.convert("RGB").save(pdf_path, "PDF", resolution=300.0)
-
-
-def relocate_protocol_ticket(*, protocol_check_file: Path, job_dir: Path | None, temp_dir: Path | None) -> Path:
-    if job_dir is None or temp_dir is None or not protocol_check_file.exists():
-        return protocol_check_file
-    try:
-        if protocol_check_file.resolve().parent != job_dir.resolve():
-            return protocol_check_file
-    except OSError:
-        return protocol_check_file
-    temp_dir.mkdir(parents=True, exist_ok=True)
-    relocated = temp_dir / protocol_check_file.name
-    if relocated.exists():
-        relocated.unlink()
-    shutil.move(str(protocol_check_file), str(relocated))
-    return relocated
-
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
@@ -173,29 +145,7 @@ def main(argv: list[str] | None = None) -> int:
         print(str(exc), file=sys.stderr)
         return 2
 
-    if args.protocol_check_file is None:
-        print("Formal task execution requires --protocol-check-file. Generate it first via scripts/protocol_gate.py.", file=sys.stderr)
-        return 2
-
-    try:
-        protocol_payload = validate_protocol_ticket(
-            args.protocol_check_file,
-            page_key=PAGE_KEY,
-            task_key=TASK_KEY,
-            input_type=infer_input_type(query_count=len(fasta_records), input_file=input_fasta),
-            job_dir=layout["job_dir"] if isinstance(layout["job_dir"], Path) else None,
-        )
-    except ProtocolGateError as exc:
-        print(str(exc), file=sys.stderr)
-        return 2
-
     temp_dir = layout["temp_dir"] if isinstance(layout["temp_dir"], Path) else None
-    if isinstance(layout["job_dir"], Path):
-        args.protocol_check_file = relocate_protocol_ticket(
-            protocol_check_file=args.protocol_check_file,
-            job_dir=layout["job_dir"],
-            temp_dir=temp_dir,
-        )
     input_artifacts = copy_input_artifacts(input_path=input_fasta, temp_dir=temp_dir)
 
     try:
@@ -266,8 +216,6 @@ def main(argv: list[str] | None = None) -> int:
                 "runtime_stdout": runtime_stdout,
                 "runtime_stderr": runtime_stderr,
                 "input_artifacts": input_artifacts,
-                "protocol_check_file": str(args.protocol_check_file),
-                "protocol_check": protocol_payload,
                 "thresholds": {
                     "ribosome": args.th1,
                     "cytosol": args.th2,
@@ -297,7 +245,6 @@ def main(argv: list[str] | None = None) -> int:
     if unmatched_ids:
         print(f"Errors JSON: {layout['errors_path']}", file=sys.stderr)
     return 0
-
 
 if __name__ == "__main__":
     raise SystemExit(main())
