@@ -19,6 +19,7 @@ def test_prepare_public_repo_sanitizes_docs_and_can_include_tests(tmp_path: Path
     out = tmp_path / "out"
 
     write_text(repo / ".gitignore", "outputs/\n")
+    write_text(repo / "LICENSE", "MIT\n")
     write_text(repo / "README.public.md", "# Public\n")
     write_text(repo / "PUBLIC_REPO_SCOPE.md", "# Scope\n")
     write_text(repo / "docs" / "QUICKSTART.md", "# Quickstart\n")
@@ -54,6 +55,7 @@ def test_prepare_public_repo_sanitizes_docs_and_can_include_tests(tmp_path: Path
     )
 
     assert (out / "README.md").read_text(encoding="utf-8") == "# Public\n"
+    assert (out / "LICENSE").read_text(encoding="utf-8") == "MIT\n"
     assert (out / "PUBLIC_REPO_SCOPE.md").exists()
     assert (out / "docs" / "QUICKSTART.md").exists()
     assert (out / "data" / "protein_smoke.fasta").exists()

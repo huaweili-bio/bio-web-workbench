@@ -5,6 +5,7 @@ This document defines the first-round public sanitization boundary for `bio-web-
 ## Included In The Public Export
 
 - root `.gitignore`
+- root `LICENSE`
 - public-facing root `README.md`
 - small smoke inputs under `data/`
 - public-facing docs under `docs/`

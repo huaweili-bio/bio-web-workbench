@@ -30,6 +30,7 @@ EXCLUDE_SCRIPT_DOCS = {
 }
 ALWAYS_INCLUDE = [
     Path(".gitignore"),
+    Path("LICENSE"),
     Path("README.public.md"),
     Path("PUBLIC_REPO_SCOPE.md"),
     Path("data"),
@@ -132,7 +133,7 @@ def build_public_export(source_root: Path, output_dir: Path, include_tests: bool
             continue
         if item == Path("README.public.md"):
             destination = output_dir / "README.md"
-            shutil.copy2(source, destination)
+            destination.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
             continue
         copy_path(source, output_dir / item, source_root, include_tests)
 
