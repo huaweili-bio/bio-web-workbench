@@ -1,0 +1,3 @@
+gene_symbol,transcript_accession_version,ribosome_label,cytosol_label,er_label,membrane_label,nucleus_label,exosome_label
+PIK3CA,NM_006218.4,No,Yes,Yes,Yes,Yes,Yes
+ITGB2,NM_000211.5,Yes,No,No,Yes,Yes,Yes

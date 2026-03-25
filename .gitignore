@@ -1,0 +1,37 @@
+# OS / editor
+Thumbs.db
+Desktop.ini
+.DS_Store
+.idea/
+.vscode/
+
+# Python
+**/__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+
+# Test / benchmark / temp
+.benchmarks/
+.pytest_cache/
+.pytest-basetemp/
+.pytest_tmp/
+.tmp/
+pytest_tmp_run/
+temp/
+
+# Generated results, caches, and local-only runtime data
+outputs/
+scripts/webpages/targetscan_org/vert_80/local_data/
+
+# Optional local secrets
+*.env
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa
+id_ed25519

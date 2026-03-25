@@ -1,0 +1,1 @@
+"""UniProtKB localization annotation package."""

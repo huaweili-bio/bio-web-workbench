@@ -1,0 +1,1 @@
+"""RNALocate localization annotation package."""

@@ -1,0 +1,1 @@
+"""GeneMANIA search webpage package."""

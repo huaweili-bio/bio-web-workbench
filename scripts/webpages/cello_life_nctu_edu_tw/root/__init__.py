@@ -1,0 +1,1 @@
+"""CELLO protein localization package."""
